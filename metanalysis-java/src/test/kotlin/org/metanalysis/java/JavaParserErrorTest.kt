@@ -17,8 +17,12 @@
 package org.metanalysis.java
 
 import org.junit.Test
+import org.metanalysis.core.model.Node.Type
+import org.metanalysis.core.model.Node.Variable
 
 import org.metanalysis.core.parsing.SyntaxErrorException
+import org.metanalysis.test.core.model.assertEquals
+import org.metanalysis.test.core.model.sourceFileOf
 
 import kotlin.test.assertFailsWith
 
@@ -46,8 +50,10 @@ class JavaParserErrorTest : JavaParserTest() {
             }
         }
         """
-        assertFailsWith<SyntaxErrorException> {
-            parser.parse(source)
-        }
+        val expected = sourceFileOf(Type(name = "Type", members = setOf(
+                Variable(name = "i")
+        )))
+        val actual = parser.parse(source)
+        assertEquals(expected, actual)
     }
 }

@@ -51,8 +51,9 @@ class JavaParser : Parser() {
          * of whitespaces) and trims leading and trailing whitespaces from all
          * lines.
          */
-        @JvmStatic fun String.toBlock(): List<String> =
-                lines().filter(String::isNotBlank).map(String::trim)
+        @JvmStatic fun String?.toBlock(): List<String> =
+                if (this == null) emptyList()
+                else lines().filter(String::isNotBlank).map(String::trim)
 
         private fun <T> Collection<T>.requireDistinct(): Set<T> {
             val unique = toSet()
@@ -73,13 +74,13 @@ class JavaParser : Parser() {
                 source.substring(startPosition, startPosition + length)
 
         fun getBody(method: MethodDeclaration) =
-                method.toSource().dropWhile { it != '{' }.toBlock()
+                method.body?.toSource().toBlock()
 
         fun getInitializer(variable: VariableDeclaration) =
-                variable.toSource().substringAfter('=', "").toBlock()
+                variable.initializer?.toSource().toBlock()
 
         fun getInitializer(enumConstant: EnumConstantDeclaration) =
-                enumConstant.toSource().toBlock()
+                enumConstant.anonymousClassDeclaration?.toSource().toBlock()
 
         fun getDefaultValue(annotationMember: AnnotationTypeMemberDeclaration) =
                 annotationMember.default?.toSource()?.toBlock() ?: emptyList()
@@ -144,14 +145,14 @@ class JavaParser : Parser() {
     }
 
     private fun Context.visit(node: AbstractTypeDeclaration): Node.Type {
-        val members = node.members().map { member ->
+        val members = node.members().mapNotNull { member ->
             when (member) {
                 is AbstractTypeDeclaration -> visit(member)
                 is AnnotationTypeMemberDeclaration -> visit(member)
                 is EnumConstantDeclaration -> visit(member)
                 is VariableDeclaration -> visit(member)
                 is MethodDeclaration -> visit(member)
-                is Initializer -> throw TODO("Can't parse initializers!")
+                is Initializer -> null // TODO: parse initializers
                 else -> throw AssertionError("Unknown declaration $member!")
             }
         }
@@ -190,6 +191,12 @@ class JavaParser : Parser() {
             node.types().requireIsInstance<AbstractTypeDeclaration>()
                     .map { visit(it) }.requireDistinct().let(::SourceFile)
 
+    private fun requireNotMalformed(node: ASTNode) {
+        if ((node.flags and (ASTNode.MALFORMED or ASTNode.RECOVERED)) != 0) {
+            throw SyntaxErrorException("Malformed AST node!")
+        }
+    }
+
     /** The `Java` programming language supported by this parser. */
     override val language: String
         get() = "Java"
@@ -199,18 +206,16 @@ class JavaParser : Parser() {
         get() = setOf("java")
 
     @Throws(SyntaxErrorException::class)
-    override fun parse(source: String): SourceFile = try {
+    override fun parse(source: String): SourceFile {
         val options = JavaCore.getOptions()
         JavaCore.setComplianceOptions(JavaCore.VERSION_1_8, options)
         val jdtParser = ASTParser.newParser(AST.JLS8).apply {
             setKind(K_COMPILATION_UNIT)
             setCompilerOptions(options)
-            setIgnoreMethodBodies(true)
             setSource(source.toCharArray())
         }
         val compilationUnit = jdtParser.createAST(null) as CompilationUnit
-        Context(source).visit(compilationUnit)
-    } catch (e: NotImplementedError) {
-        throw SyntaxErrorException(e)
+        requireNotMalformed(compilationUnit)
+        return Context(source).visit(compilationUnit)
     }
 }

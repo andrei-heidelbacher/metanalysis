@@ -44,9 +44,9 @@ class JavaParserEnumTest : JavaParserTest() {
         }
         """
         val expected = sourceFileOf(Type(name = "Color", members = setOf(
-                Variable(name = "RED", initializer = listOf("RED")),
-                Variable(name = "GREEN", initializer = listOf("GREEN")),
-                Variable(name = "BLUE", initializer = listOf("BLUE"))
+                Variable(name = "RED"),
+                Variable(name = "GREEN"),
+                Variable(name = "BLUE")
         )))
         assertEquals(expected, parser.parse(source))
     }
@@ -63,9 +63,9 @@ class JavaParserEnumTest : JavaParserTest() {
         }
         """
         val expected = sourceFileOf(Type(name = "Color", members = setOf(
-                Variable(name = "RED", initializer = listOf("RED")),
-                Variable(name = "GREEN", initializer = listOf("GREEN")),
-                Variable(name = "BLUE", initializer = listOf("BLUE")),
+                Variable(name = "RED"),
+                Variable(name = "GREEN"),
+                Variable(name = "BLUE"),
                 Variable(
                         name = "format",
                         modifiers = setOf("public", "final"),
@@ -79,7 +79,8 @@ class JavaParserEnumTest : JavaParserTest() {
     @Test fun `test enum with anonymous class constants`() {
         val source = """
         enum Color {
-            RED() {
+            /** Another {@code Java=Doc}. */
+            RED() /** {@code Java=doc} */ {
                 @Override String getCode() {
                     return "#FF0000";
                 }
@@ -99,17 +100,17 @@ class JavaParserEnumTest : JavaParserTest() {
         }
         """
         val expected = sourceFileOf(Type(name = "Color", members = setOf(
-                Variable(name = "RED", initializer = """RED() {
+                Variable(name = "RED", initializer = """{
                     @Override String getCode() {
                         return "#FF0000";
                     }
                 }""".toBlock()),
-                Variable(name = "GREEN", initializer = """GREEN() {
+                Variable(name = "GREEN", initializer = """{
                     @Override String getCode() {
                         return "#00FF00";
                     }
                 }""".toBlock()),
-                Variable(name = "BLUE", initializer = """BLUE() {
+                Variable(name = "BLUE", initializer = """{
                     @Override String getCode() {
                         return "#0000FF";
                     }
@@ -118,5 +119,4 @@ class JavaParserEnumTest : JavaParserTest() {
         )))
         assertEquals(expected, parser.parse(source))
     }
-
 }
