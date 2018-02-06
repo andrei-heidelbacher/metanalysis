@@ -145,6 +145,7 @@ class JavaParser : Parser() {
     }
 
     private fun Context.visit(node: AbstractTypeDeclaration): Node.Type {
+        requireNotMalformed(node)
         val members = node.members().mapNotNull { member ->
             when (member) {
                 is AbstractTypeDeclaration -> visit(member)
@@ -164,16 +165,29 @@ class JavaParser : Parser() {
         )
     }
 
-    private fun Context.visit(node: AnnotationTypeMemberDeclaration) =
-            Node.Variable(node.name(), emptySet(), getDefaultValue(node))
+    private fun Context.visit(
+        node: AnnotationTypeMemberDeclaration
+    ): Node.Variable {
+        requireNotMalformed(node)
+        return Node.Variable(node.name(), emptySet(), getDefaultValue(node))
+    }
 
-    private fun Context.visit(node: EnumConstantDeclaration) =
-            Node.Variable(node.name(), emptySet(), getInitializer(node))
+    private fun Context.visit(node: EnumConstantDeclaration): Node.Variable {
+        requireNotMalformed(node)
+        return Node.Variable(node.name(), emptySet(), getInitializer(node))
+    }
 
-    private fun Context.visit(node: VariableDeclaration) =
-            Node.Variable(node.name(), getModifiers(node), getInitializer(node))
+    private fun Context.visit(node: VariableDeclaration): Node.Variable {
+        requireNotMalformed(node)
+        return Node.Variable(
+                name = node.name(),
+                modifiers = getModifiers(node),
+                initializer = getInitializer(node)
+        )
+    }
 
     private fun Context.visit(node: MethodDeclaration): Node.Function {
+        requireNotMalformed(node)
         val parameters =
                 node.parameters().requireIsInstance<SingleVariableDeclaration>()
         val parameterTypes = parameters.map {
@@ -187,9 +201,11 @@ class JavaParser : Parser() {
         )
     }
 
-    private fun Context.visit(node: CompilationUnit): SourceFile =
-            node.types().requireIsInstance<AbstractTypeDeclaration>()
-                    .map { visit(it) }.requireDistinct().let(::SourceFile)
+    private fun Context.visit(node: CompilationUnit): SourceFile {
+        requireNotMalformed(node)
+        return node.types().requireIsInstance<AbstractTypeDeclaration>()
+            .map { visit(it) }.requireDistinct().let(::SourceFile)
+    }
 
     private fun requireNotMalformed(node: ASTNode) {
         if ((node.flags and (ASTNode.MALFORMED or ASTNode.RECOVERED)) != 0) {
@@ -215,7 +231,6 @@ class JavaParser : Parser() {
             setSource(source.toCharArray())
         }
         val compilationUnit = jdtParser.createAST(null) as CompilationUnit
-        requireNotMalformed(compilationUnit)
         return Context(source).visit(compilationUnit)
     }
 }
